@@ -3,6 +3,8 @@ import 'package:banking_track/pages/statement_dwd/pdf_service.dart';
 import 'package:banking_track/pages/statement_dwd/save_and_open.dart';
 import 'package:flutter/material.dart';
 
+final List<String> list = <String>['Holding', 'Closed'];
+
 class StatementsPage extends StatefulWidget {
   const StatementsPage({super.key});
 
@@ -13,18 +15,21 @@ class StatementsPage extends StatefulWidget {
 class _StatementsPageState extends State<StatementsPage> {
   AccountHolderRepository _accountHolderRepository = AccountHolderRepository();
   BankAccountsRepository _bankAccountsRepository = BankAccountsRepository();
-  PanNumbersRepository _numbersRepository = PanNumbersRepository();
+  // PanNumbersRepository _numbersRepository = PanNumbersRepository();
   FDRepository _fdRepository = FDRepository();
   List<Map<String, dynamic>> names = [];
-  List<Map<String, dynamic>> panNumbers = [];
+  // List<Map<String, dynamic>> panNumbers = [];
   List<Map<String, dynamic>> accountNumbers = [];
   String currentHolder = '';
   String curretPan = '';
   String currentBank = '';
   final TextEditingController _yearNamecontroller = TextEditingController();
-  final TextEditingController _yearPancontroller = TextEditingController();
+  // final TextEditingController _yearPancontroller = TextEditingController();
 
   final TextEditingController _yearBankAcccontroller = TextEditingController();
+
+  String? dropdownValue = list.first;
+  String? dropdownValueBank = list.first;
 
   @override
   void initState() {
@@ -35,12 +40,12 @@ class _StatementsPageState extends State<StatementsPage> {
 
   Future<void> fetchData() async {
     final name = await _fdRepository.getACName();
-    final pans = await _numbersRepository.getPanNumbers();
+    // final pans = await _numbersRepository.getPanNumbers();
     final banks = await _bankAccountsRepository.getAllBankAccountNumbers();
     // print(pans);
     setState(() {
       names = name;
-      panNumbers = pans;
+      // panNumbers = pans;
       accountNumbers = banks;
     });
   }
@@ -78,6 +83,31 @@ class _StatementsPageState extends State<StatementsPage> {
                         currentHolder = value!;
                       },
                     ),
+                    const SizedBox(
+                      height: 30,
+                    ),
+                    SizedBox(
+                      width: 100,
+                      child: DropdownButton(
+                        value: dropdownValue,
+                        onChanged: (String? value) {
+                          setState(() {
+                            dropdownValue = value;
+                          });
+                          // print(dropdownValue);
+                        },
+                        items:
+                            list.map<DropdownMenuItem<String>>((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 30,
+                    ),
                     SizedBox(
                       width: 150,
                       child: TextFormField(
@@ -86,6 +116,7 @@ class _StatementsPageState extends State<StatementsPage> {
                           color: Colors.black,
                         ),
                         decoration: const InputDecoration(
+                            hintText: 'eg: 2024',
                             labelStyle: TextStyle(
                               color: Colors.black,
                             ),
@@ -97,9 +128,18 @@ class _StatementsPageState extends State<StatementsPage> {
                     ),
                     ElevatedButton(
                       onPressed: () async {
-                        final tablePdf = await PdfApi.generateAcNameStatement(
-                            currentHolder, int.parse(_yearNamecontroller.text));
-                        SaveAndOpenDocument.openPdf(tablePdf);
+                        if (dropdownValue == 'Holding') {
+                          final tablePdf = await PdfApi.generateAcNameStatement(
+                              currentHolder,
+                              int.parse(_yearNamecontroller.text));
+                          SaveAndOpenDocument.openPdf(tablePdf);
+                        } else {
+                          final tablePdf =
+                              await PdfApi.generateAcNameStatementClosed(
+                                  currentHolder,
+                                  int.parse(_yearNamecontroller.text));
+                          SaveAndOpenDocument.openPdf(tablePdf);
+                        }
                       },
                       child: const Text("Submit"),
                     )
@@ -108,53 +148,9 @@ class _StatementsPageState extends State<StatementsPage> {
                 const SizedBox(
                   width: 20,
                 ),
-                Column(
-                  children: [
-                    DropdownMenu(
-                      width: 200,
-                      enableFilter: true,
-                      hintText: "Select a PAN",
-                      dropdownMenuEntries:
-                          panNumbers.map((Map<String, dynamic> pan) {
-                        return DropdownMenuEntry<String>(
-                          value: pan['pan_number'],
-                          label: pan['pan_number'],
-                        );
-                      }).toList(),
-                      onSelected: (value) {
-                        curretPan = value!;
-                      },
-                    ),
-                    SizedBox(
-                      width: 150,
-                      child: TextFormField(
-                        controller: _yearPancontroller,
-                        style: const TextStyle(
-                          color: Colors.black,
-                        ),
-                        decoration: const InputDecoration(
-                            labelStyle: TextStyle(
-                              color: Colors.black,
-                            ),
-                            labelText: 'Financial year'),
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 30,
-                    ),
-                    ElevatedButton(
-                      onPressed: () async {
-                        final tablePdf = await PdfApi.generatePanStatement(
-                            curretPan, int.parse(_yearPancontroller.text));
-                        SaveAndOpenDocument.openPdf(tablePdf);
-                      },
-                      child: const Text("Submit"),
-                    )
-                  ],
-                ),
-                const SizedBox(
-                  width: 20,
-                ),
+                // const SizedBox(
+                //   width: 20,
+                // ),
                 Column(
                   children: [
                     DropdownMenu(
@@ -172,6 +168,34 @@ class _StatementsPageState extends State<StatementsPage> {
                         currentBank = value!;
                       },
                     ),
+                    const SizedBox(
+                      height: 30,
+                    ),
+                    // const SizedBox(
+                    //   height: 30,
+                    // ),
+                    SizedBox(
+                      width: 100,
+                      child: DropdownButton(
+                        value: dropdownValueBank,
+                        onChanged: (String? value) {
+                          setState(() {
+                            dropdownValueBank = value;
+                          });
+                          // print(dropdownValue);
+                        },
+                        items:
+                            list.map<DropdownMenuItem<String>>((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 30,
+                    ),
                     SizedBox(
                       width: 150,
                       child: TextFormField(
@@ -180,6 +204,7 @@ class _StatementsPageState extends State<StatementsPage> {
                           color: Colors.black,
                         ),
                         decoration: const InputDecoration(
+                            hintText: 'eg: 2024',
                             labelStyle: TextStyle(
                               color: Colors.black,
                             ),
@@ -191,10 +216,18 @@ class _StatementsPageState extends State<StatementsPage> {
                     ),
                     ElevatedButton(
                       onPressed: () async {
-                        final tablePdf = await PdfApi.generateBankStatement(
-                            currentBank,
-                            int.parse(_yearBankAcccontroller.text));
-                        SaveAndOpenDocument.openPdf(tablePdf);
+                        if (dropdownValueBank == 'Holding') {
+                          final tablePdf = await PdfApi.generateBankStatement(
+                              currentBank,
+                              int.parse(_yearBankAcccontroller.text));
+                          SaveAndOpenDocument.openPdf(tablePdf);
+                        } else {
+                          final tablePdf =
+                              await PdfApi.generateBankStatementClosed(
+                                  currentBank,
+                                  int.parse(_yearBankAcccontroller.text));
+                          SaveAndOpenDocument.openPdf(tablePdf);
+                        }
                       },
                       child: const Text("Submit"),
                     )

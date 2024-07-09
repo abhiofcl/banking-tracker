@@ -281,6 +281,36 @@ class AccountHolderRepository {
 class StatementGenerator {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
   Future<List<Map<String, dynamic>>> getFDsByAccountHolder(
+      String accountHolderName, String end, String start) async {
+    final db = await _databaseHelper.database;
+    final result = await db.rawQuery('''
+      SELECT 
+          fd.term_deposit_ac_no,
+          fd.date_of_deposit,
+          fd.amount_deposited,
+          fd.rate_of_interest,
+          fd.due_date,
+          fd.status,
+          ba.bank_account_number,
+          pn.pan_number,
+          ah.account_holder_name
+      FROM 
+          FixedDeposits fd
+      JOIN 
+          BankAccounts ba ON fd.bank_account_id = ba.id
+      JOIN 
+          PanNumbers pn ON ba.pan_id = pn.id
+      JOIN 
+          AccountHolders ah ON fd.id = ah.fd_id
+      WHERE 
+          fd.status='open' and ah.account_holder_name = ? and fd.primary_acc_holder=?  and fd.due_date>=? and fd.date_of_deposit<=?
+      ORDER BY ba.bank_account_number,fd.term_deposit_ac_no
+    ''', [accountHolderName, accountHolderName, start, start]);
+
+    return result;
+  }
+
+  Future<List<Map<String, dynamic>>> getFDsByAccountHolderClosed(
       String accountHolderName, String year, String start) async {
     final db = await _databaseHelper.database;
     final result = await db.rawQuery('''
@@ -303,42 +333,9 @@ class StatementGenerator {
       JOIN 
           AccountHolders ah ON fd.id = ah.fd_id
       WHERE 
-          ah.account_holder_name = ? and fd.primary_acc_holder=?  and fd.due_date>=? and fd.date_of_deposit<=?
+          ah.account_holder_name = ? and fd.primary_acc_holder=?  and fd.due_date  between ? and ? and fd.date_of_deposit<=?
       ORDER BY ba.bank_account_number,fd.term_deposit_ac_no
-    ''', [accountHolderName, accountHolderName, year, start]);
-
-    return result;
-  }
-
-  Future<List<Map<String, dynamic>>> getFDsByPanNumber(
-      String panNo, String year, String start) async {
-    final db = await _databaseHelper.database;
-    final result = await db.rawQuery('''
-    SELECT 
-        fd.term_deposit_ac_no,
-        fd.date_of_deposit,
-        fd.amount_deposited,
-        fd.rate_of_interest,
-        fd.due_date,
-        fd.status,
-        ba.bank_account_number,
-        pn.pan_number,
-        ah1.account_holder_name AS account_holder_name1,
-        ah2.account_holder_name AS account_holder_name2
-    FROM 
-        FixedDeposits fd
-    JOIN 
-        BankAccounts ba ON fd.bank_account_id = ba.id
-    JOIN 
-        PanNumbers pn ON ba.pan_id = pn.id
-    LEFT JOIN 
-        AccountHolders ah1 ON fd.id = ah1.fd_id AND ah1.id = (SELECT MIN(id) FROM AccountHolders WHERE fd_id = fd.id)
-    LEFT JOIN 
-        AccountHolders ah2 ON fd.id = ah2.fd_id AND ah2.id = (SELECT MAX(id) FROM AccountHolders WHERE fd_id = fd.id)
-    WHERE 
-        pn.pan_number = ? and fd.due_date>=? and fd.date_of_deposit<=?
-      ORDER BY ba.bank_account_number,fd.term_deposit_ac_no
-  ''', [panNo, year, start]);
+    ''', [accountHolderName, accountHolderName, year, start, start]);
 
     return result;
   }
@@ -370,40 +367,44 @@ class StatementGenerator {
     LEFT JOIN 
         AccountHolders ah2 ON fd.id = ah2.fd_id AND ah2.id = (SELECT MAX(id) FROM AccountHolders WHERE fd_id = fd.id)
     WHERE 
-        ba.bank_account_number = ? and fd.due_date>=? and fd.date_of_deposit<=?
+        fd.status='open' and ba.bank_account_number = ? and fd.due_date>=? and fd.date_of_deposit<=?
       ORDER BY fd.term_deposit_ac_no
   ''', [bankAccNo, year, start]);
     return result;
   }
-  // Future<List<Map<String, dynamic>>> getFDsByAccountHolderFY(
-  //     String accountHolderName, int year) async {
-  //   final db = await _databaseHelper.database;
-  //   String start = '$year-03-31';
-  //   String end = '${year + 1}-03-31';
-  //   final result = await db.rawQuery('''
-  //     SELECT
-  //         fd.term_deposit_ac_no,
-  //         fd.date_of_deposit,
-  //         fd.amount_deposited,
-  //         fd.rate_of_interest,
-  //         fd.due_date,
-  //         ba.bank_account_number,
-  //         pn.pan_number,
-  //         ah.account_holder_name
-  //     FROM
-  //         FixedDeposits fd
-  //     JOIN
-  //         BankAccounts ba ON fd.bank_account_id = ba.id
-  //     JOIN
-  //         PanNumbers pn ON ba.pan_id = pn.id
-  //     JOIN
-  //         AccountHolders ah ON fd.id = ah.fd_id
-  //     WHERE
-  //         ah.account_holder_name = ?
-  //   ''', [accountHolderName]);
 
-  //   return result;
-  // }
+  Future<List<Map<String, dynamic>>> getFDsByBankNumberClosed(
+      String bankAccNo, String year, String start) async {
+    final db = await _databaseHelper.database;
+    // String fyEnd = '${year + 1}-03-31';
+    final result = await db.rawQuery('''
+    SELECT 
+        fd.term_deposit_ac_no,
+        fd.date_of_deposit,
+        fd.amount_deposited,
+        fd.rate_of_interest,
+        fd.due_date,
+        fd.status,
+        ba.bank_account_number,
+        pn.pan_number,
+        ah1.account_holder_name AS account_holder_name1,
+        ah2.account_holder_name AS account_holder_name2
+    FROM 
+        FixedDeposits fd
+    JOIN 
+        BankAccounts ba ON fd.bank_account_id = ba.id
+    JOIN 
+        PanNumbers pn ON ba.pan_id = pn.id
+    LEFT JOIN 
+        AccountHolders ah1 ON fd.id = ah1.fd_id AND ah1.id = (SELECT MIN(id) FROM AccountHolders WHERE fd_id = fd.id)
+    LEFT JOIN 
+        AccountHolders ah2 ON fd.id = ah2.fd_id AND ah2.id = (SELECT MAX(id) FROM AccountHolders WHERE fd_id = fd.id)
+    WHERE 
+       fd.status!='open' and ba.bank_account_number = ? and fd.due_date>=? and fd.date_of_deposit<=?
+      ORDER BY fd.term_deposit_ac_no
+  ''', [bankAccNo, year, start]);
+    return result;
+  }
 
   Future<List<Map<String, dynamic>>> getFDS(int fdID) async {
     final db = await _databaseHelper.database;
